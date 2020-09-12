@@ -41,8 +41,8 @@ export const render = (
 }
 
 export const scheduleWork = (fiber: IFiber) => {
-  if (!fiber.dirty) {
-    fiber.dirty = true
+  if (!fiber.lane) {
+    fiber.lane = true
     updateQueue.push(fiber)
   }
   scheduleCallback(reconcileWork as ITaskCallback)
@@ -71,12 +71,12 @@ const reconcile = (WIP: IFiber): IFiber | undefined => {
   } else {
     updateHost(WIP)
   }
-  WIP.dirty = WIP.dirty ? false : 0
+  WIP.lane = WIP.lane ? false : 0
   commitQueue.push(WIP)
 
   if (WIP.child) return WIP.child
   while (WIP) {
-    if (!preCommit && WIP.dirty === false) {
+    if (!preCommit && WIP.lane === false) {
       preCommit = WIP
       return null
     }
@@ -168,7 +168,7 @@ const reconcileChildren = (WIP: IFiber, children: FreNode): void => {
 
 const shouldPlace = (fiber: IFiber): string | boolean | undefined => {
   let p = fiber.parent
-  if (isFn(p.type)) return p.key && !p.dirty
+  if (isFn(p.type)) return p.key && !p.lane
   return fiber.key
 }
 
