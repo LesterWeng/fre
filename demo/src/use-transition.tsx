@@ -13,7 +13,7 @@ const Child = () => {
       <button
         onClick={() => {
           startTransition(() => {
-            setResource(wrapPromise(new Promise((r) => setTimeout(() => r(), 3000)).then(() => 'FETCHED RESULT')))
+            setResource(wrapPromise(new Promise((r) => setTimeout(r, 3000)).then(() => 'FETCHED RESULT')))
           })
         }}
       >
