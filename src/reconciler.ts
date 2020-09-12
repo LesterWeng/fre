@@ -1,16 +1,4 @@
-import {
-  IFiber,
-  FreElement,
-  ITaskCallback,
-  FC,
-  Attributes,
-  HTMLElementEx,
-  FreNode,
-  FiberMap,
-  IRef,
-  IEffect,
-  Option
-} from './type'
+import { IFiber, FreElement, ITaskCallback, FC, Attributes, HTMLElementEx, FreNode, FiberMap, IRef, IEffect, Option } from './type'
 import { createElement, updateElement } from './dom'
 import { resetCursor } from './hooks'
 import { scheduleCallback, shouldYeild, planWork } from './scheduler'
@@ -18,45 +6,40 @@ import { isArr, createText } from './h'
 export const options: Option = {
   catchError(_, e) {
     throw e
-  }
+  },
 }
 
 let preCommit: IFiber | undefined
 let currentFiber: IFiber
 let WIP: IFiber | undefined
-let updateQueue: IFiber[] = []
+let root: IFiber | undefined
 let commitQueue: IFiber[] = []
 
-export const render = (
-  vnode: FreElement,
-  node: Element | Document | DocumentFragment | Comment,
-  done?: () => void
-): void => {
-  let rootFiber = {
+export const render = (vnode: FreElement, node: Element | Document | DocumentFragment | Comment, done?: () => void): void => {
+  root = {
     node,
     props: { children: vnode },
-    done
+    done,
   } as IFiber
-  scheduleWork(rootFiber)
+  WIP = root
+  scheduleWork()
 }
 
-export const scheduleWork = (fiber: IFiber) => {
-  if (!fiber.lane) {
-    fiber.lane = true
-    updateQueue.push(fiber)
-  }
+export const scheduleWork = () => {
   scheduleCallback(reconcileWork as ITaskCallback)
 }
 
 const reconcileWork = (timeout: boolean): boolean | null | ITaskCallback => {
-  if (!WIP) WIP = updateQueue.shift()
   while (WIP && (!shouldYeild() || timeout)) {
     WIP = reconcile(WIP)
   }
+  console.log(WIP)
   if (WIP && !timeout) {
     return reconcileWork.bind(null)
   }
-  if (preCommit) commitWork(preCommit)
+  if (!WIP) {
+    commitWork()
+  }
   return null
 }
 
@@ -72,14 +55,9 @@ const reconcile = (WIP: IFiber): IFiber | undefined => {
     updateHost(WIP)
   }
   WIP.lane = WIP.lane ? false : 0
-  commitQueue.push(WIP)
-
+  WIP.parent && commitQueue.push(WIP)
   if (WIP.child) return WIP.child
   while (WIP) {
-    if (!preCommit && WIP.lane === false) {
-      preCommit = WIP
-      return null
-    }
     if (WIP.sibling) {
       return WIP.sibling
     }
@@ -172,11 +150,10 @@ const shouldPlace = (fiber: IFiber): string | boolean | undefined => {
   return fiber.key
 }
 
-const commitWork = (fiber: IFiber): void => {
-  commitQueue.forEach(c => c.parent && commit(c))
-  fiber.done && fiber.done()
+const commitWork = (): void => {
+  commitQueue.forEach(commit)
+  root.done && root.done()
   commitQueue.length = 0
-  preCommit = null
   WIP = null
 }
 
@@ -207,18 +184,13 @@ const commit = (fiber: IFiber): void => {
 const hashfy = <P>(c: IFiber<P>): FiberMap<P> => {
   const out: FiberMap<P> = {}
   isArr(c)
-    ? c.forEach((v, i) =>
-        isArr(v)
-          ? v.forEach((vi, j) => (out[hs(i, j, vi.key)] = vi))
-          : some(v) && (out[hs(i, null, v.key)] = v)
-      )
+    ? c.forEach((v, i) => (isArr(v) ? v.forEach((vi, j) => (out[hs(i, j, vi.key)] = vi)) : some(v) && (out[hs(i, null, v.key)] = v)))
     : some(c) && (out[hs(0, null, (c as any).key)] = c)
   return out
 }
 
 const refer = (ref: IRef, dom?: HTMLElement): void => {
-  if (ref)
-    isFn(ref) ? ref(dom) : ((ref as { current?: HTMLElement })!.current = dom)
+  if (ref) isFn(ref) ? ref(dom) : ((ref as { current?: HTMLElement })!.current = dom)
 }
 
 const cleanupRef = <P = Attributes>(kids: FiberMap<P>): void => {
@@ -237,27 +209,20 @@ const side = (effects: IEffect[]): void => {
 
 export const getCurrentFiber = () => currentFiber || null
 
-const effect = (e: IEffect): void => e[2] = e[0](currentFiber)
+const effect = (e: IEffect): void => (e[2] = e[0](currentFiber))
 const cleanup = (e: IEffect): void => e[2] && e[2](currentFiber)
 
 export const isFn = (x: any): x is Function => typeof x === 'function'
-export const isStr = (s: any): s is number | string =>
-  typeof s === 'number' || typeof s === 'string'
+export const isStr = (s: any): s is number | string => typeof s === 'number' || typeof s === 'string'
 export const some = (v: any) => v != null && v !== false && v !== true
 
 const hs = (i: number, j: string | number | null, k?: string): string =>
-  k != null && j != null
-    ? '.' + i + '.' + k
-    : j != null
-    ? '.' + i + '.' + j
-    : k != null
-    ? '.' + k
-    : '.' + i
+  k != null && j != null ? '.' + i + '.' + k : j != null ? '.' + i + '.' + j : k != null ? '.' + k : '.' + i
 
 export const enum Flag {
   NOWORK = 0,
   PLACE = 1,
   UPDATE = 2,
   DELETE = 3,
-  SVG = 4
+  SVG = 4,
 }

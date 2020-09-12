@@ -32,8 +32,9 @@ export const useReducer = <S, A, Dependency = any>(
       ? (value as Dispatch<A>)((hook as [A, Dependency])[0])
       : value
     if (newValue !== hook[0]) {
+      current.lane = true
       ;(hook as [S | A | Dispatch<A> | void, Dependency])[0] = newValue
-      scheduleWork(current)
+      scheduleWork()
     }
   }
 
