@@ -20,7 +20,7 @@ const Child = () => {
         CLICK ME
       </button>
       <pre>{JSON.stringify({ count, isPending }, null, 2)}</pre>
-      {resource === undefined ? 'Initial state' : resource.read()}
+      {resource ? resource.read() : 'Initial state'}
     </div>
   )
 }
@@ -44,7 +44,7 @@ const wrapPromise = (promise) => {
   return {
     read() {
       if (!result) throw promise
-      return  result.value
+      return result.value
     },
   }
 }
