@@ -21,7 +21,6 @@ export const render = (vnode: FreElement, node: Element | Document | DocumentFra
     props: { children: vnode },
     done,
   } as IFiber
-  WIP = root
   scheduleWork()
 }
 
@@ -30,10 +29,10 @@ export const scheduleWork = () => {
 }
 
 const reconcileWork = (timeout: boolean): boolean | null | ITaskCallback => {
+  if (!WIP) WIP = root
   while (WIP && (!shouldYeild() || timeout)) {
     WIP = reconcile(WIP)
   }
-  console.log(WIP)
   if (WIP && !timeout) {
     return reconcileWork.bind(null)
   }
