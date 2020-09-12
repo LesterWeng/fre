@@ -5,9 +5,7 @@ const Child = () => {
   const [startTransition, isPending] = useTransition()
   const [count, setCount] = useState(0)
   useEffect(() => {
-    const id = setInterval(() => {
-      setCount((c) => c + 1)
-    }, 200)
+    const id = setInterval(() => setCount((c) => c + 1), 200)
     return () => clearInterval(id)
   }, [])
   return (
@@ -15,7 +13,7 @@ const Child = () => {
       <button
         onClick={() => {
           startTransition(() => {
-            setResource(createResource(4000))
+            setResource(wrapPromise(new Promise((r) => setTimeout(() => r(), 3000)).then(() => 'FETCHED RESULT')))
           })
         }}
       >
@@ -35,32 +33,20 @@ const App = () => {
   )
 }
 
-const sleep = (durationMs) => new Promise((resolve) => setTimeout(() => resolve(), durationMs))
 const wrapPromise = (promise) => {
   let result
   promise.then(
     (value) => {
       result = { type: 'success', value }
     },
-    (value) => {
-      result = { type: 'error', value }
-    }
+    () => {}
   )
   return {
     read() {
-      if (result === undefined) {
-        throw promise
-      }
-      if (result.type === 'error') {
-        throw result.value
-      }
-      return result.value
+      if (!result) throw promise
+      return  result.value
     },
   }
-}
-
-const createResource = (durationMs) => {
-  return wrapPromise(sleep(durationMs).then(() => 'FETCHED RESULT'))
 }
 
 render(<App />, document.body)
