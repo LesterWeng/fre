@@ -1,15 +1,9 @@
 import { h, Fragment } from './h'
 import { render, scheduleWork, getCurrentFiber, options } from './reconciler'
-import {
-  useState,
-  useReducer,
-  useEffect,
-  useMemo,
-  useCallback,
-  useRef,
-  useLayout
-} from './hooks'
+import { useState, useReducer, useEffect, useMemo, useCallback, useRef, useLayout } from './hooks'
 export * from './type'
+
+import { Suspense, useTransition, lazy } from './suspense'
 
 export {
   h,
@@ -26,7 +20,10 @@ export {
   useLayout as useLayoutEffect,
   Fragment,
   getCurrentFiber,
-  options
+  options,
+  Suspense,
+  useTransition,
+  lazy,
 }
 const Fre = {
   h,
@@ -41,7 +38,7 @@ const Fre = {
   useRef,
   Fragment,
   getCurrentFiber,
-  options
+  options,
 }
 
 export default Fre

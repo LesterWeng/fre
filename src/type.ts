@@ -79,7 +79,7 @@ export type SetStateAction<S> = S | ((prevState: S) => S)
 export type Dispatch<A> = (value: A) => void
 export type Reducer<S, A> = (prevState: S, action: A) => S
 export type IVoidCb = () => void
-export type EffectCallback = () => void | (IVoidCb | undefined)
+export type EffectCallback = (c:any) => void | (IVoidCb | undefined)
 export type DependencyList = ReadonlyArray<any>
 
 export interface PropsWithChildren {
