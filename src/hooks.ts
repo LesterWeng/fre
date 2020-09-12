@@ -20,8 +20,8 @@ export const useReducer = <S, A, Dependency = any>(reducer?: Reducer<S, A>, init
       : value
     if (newValue !== hook[0]) {
       ;(hook as [S | A | Dispatch<A> | void, Dependency])[0] = newValue
-      if (!current.lane) {
-        current.lane = true
+      if (current.lane < 1) {
+        current.lane = 2
         scheduleWork()
       }
     }

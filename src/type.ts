@@ -26,6 +26,8 @@ export interface FreElement<P extends Attributes = any, T = string> {
   props: P
 }
 
+export type Node = Element | Document | DocumentFragment | Comment
+
 export type HookTpes = 'list' | 'effect' | 'layout'
 
 export interface IHook {
@@ -42,7 +44,7 @@ export type FiberMap<P> = Record<string, IFiber<P>>
 
 export interface IFiber<P extends Attributes = any> {
   key?: string
-  lane?: boolean | number
+  lane?: number
   tag: number
   type: string | FC<P>
   op: number

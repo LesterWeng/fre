@@ -1,4 +1,4 @@
-import { IFiber, FreElement, ITaskCallback, FC, Attributes, HTMLElementEx, FreNode, FiberMap, IRef, IEffect, Option } from './type'
+import { IFiber, FreElement, ITaskCallback, FC, Attributes, HTMLElementEx, FreNode, FiberMap, IRef, IEffect, Option, Node } from './type'
 import { createElement, updateElement } from './dom'
 import { resetCursor } from './hooks'
 import { scheduleCallback, shouldYeild, planWork } from './scheduler'
@@ -9,13 +9,12 @@ export const options: Option = {
   },
 }
 
-let preCommit: IFiber | undefined
 let currentFiber: IFiber
 let WIP: IFiber | undefined
 let root: IFiber | undefined
 let commitQueue: IFiber[] = []
 
-export const render = (vnode: FreElement, node: Element | Document | DocumentFragment | Comment, done?: () => void): void => {
+export const render = (vnode: FreElement, node: Node, done?: () => void): void => {
   root = {
     node,
     props: { children: vnode },
@@ -44,6 +43,7 @@ const reconcileWork = (timeout: boolean): boolean | null | ITaskCallback => {
 
 const reconcile = (WIP: IFiber): IFiber | undefined => {
   WIP.parentNode = getParentNode(WIP) as HTMLElementEx
+  WIP.lane = WIP.lane || WIP.parent?.lane || 0
   if (isFn(WIP.type)) {
     try {
       updateHook(WIP)
@@ -53,15 +53,22 @@ const reconcile = (WIP: IFiber): IFiber | undefined => {
   } else {
     updateHost(WIP)
   }
-  WIP.lane = WIP.lane ? false : 0
   WIP.parent && commitQueue.push(WIP)
   if (WIP.child) return WIP.child
   while (WIP) {
+    if (WIP.lane === 1) {
+      return null
+    }
     if (WIP.sibling) {
       return WIP.sibling
     }
     WIP = WIP.parent
   }
+}
+
+function devide(num: number) {
+  if (num === 0) return 0
+  return 1
 }
 
 const updateHook = <P = Attributes>(WIP: IFiber): void => {
@@ -70,6 +77,7 @@ const updateHook = <P = Attributes>(WIP: IFiber): void => {
   let children = (WIP.type as FC<P>)(WIP.props)
   if (isStr(children)) children = createText(children as string)
   reconcileChildren(WIP, children)
+  WIP.lane = devide(WIP.lane)
 }
 
 const updateHost = (WIP: IFiber): void => {
@@ -141,6 +149,14 @@ const reconcileChildren = (WIP: IFiber, children: FreNode): void => {
   }
 
   if (prevFiber) prevFiber.sibling = null
+}
+
+function cloneChildren(fiber:IFiber) {
+  if (!fiber.child) return
+  let child = fiber.child
+  fiber.child = child
+  child.parent = fiber
+  child.sibling = null
 }
 
 const shouldPlace = (fiber: IFiber): string | boolean | undefined => {
