@@ -1,11 +1,9 @@
 import { ITask, ITaskCallback } from './type'
-import { isFn } from './reconciler'
 
 const macroTask: ITask[] = []
 let deadline: number = 0
-const sliceLen: number = 5
+const threshold: number = 1000 / 60
 const callbacks = []
-
 
 export const schedule = (cb) => callbacks.push(cb) === 1 && postMessage()
 
@@ -22,9 +20,9 @@ export const scheduleWork = (callback: ITaskCallback): void => {
 const postMessage = (() => {
   const cb = () => callbacks.splice(0, callbacks.length).forEach((c) => c())
   if (typeof MessageChannel !== 'undefined') {
-    const channel = new MessageChannel()
-    channel.port1.onmessage = cb
-    return () => channel.port2.postMessage(null)
+    const { port1, port2 } = new MessageChannel()
+    port1.onmessage = cb
+    return () => port2.postMessage(null)
   }
   return () => setTimeout(cb)
 })()
@@ -40,8 +38,8 @@ const flush = (initTime: number): boolean => {
     const callback = currentTask.callback
     currentTask.callback = null
 
-    const next = isFn(callback) && callback(timeout)
-    next ? (currentTask.callback = next) : macroTask.shift()
+    const next = callback(timeout)
+    next ? (currentTask.callback = next as any) : macroTask.shift()
 
     currentTask = peek(macroTask)
     currentTime = getTime()
@@ -56,7 +54,7 @@ const peek = (queue: ITask[]) => {
 
 const flushWork = (): void => {
   const currentTime = getTime()
-  deadline = currentTime + sliceLen
+  deadline = currentTime + threshold
   flush(currentTime) && schedule(flushWork)
 }
 

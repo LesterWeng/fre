@@ -8,7 +8,6 @@ let preCommit: IFiber | undefined
 let currentFiber: IFiber
 let WIP: IFiber | undefined
 let commits: IFiber[] = []
-
 const microTask: IFiber[] = []
 
 export const render = (vnode: FreElement, node: Node, done?: () => void): void => {
@@ -17,7 +16,6 @@ export const render = (vnode: FreElement, node: Node, done?: () => void): void =
     props: { children: vnode },
     done,
   } as IFiber
-  window.addEventListener('error', onError)
   dispatchUpdate(rootFiber)
 }
 
@@ -29,14 +27,10 @@ export const dispatchUpdate = (fiber?: IFiber) => {
   scheduleWork(reconcileWork as ITaskCallback)
 }
 
-const reconcileWork = (timeout: boolean): boolean | null | ITaskCallback => {
+const reconcileWork = (timeout: boolean): boolean => {
   if (!WIP) WIP = microTask.shift()
-  while (WIP && (!shouldYield() || timeout)) {
-    WIP = reconcile(WIP)
-  }
-  if (WIP && !timeout) {
-    return reconcileWork.bind(null)
-  }
+  while (WIP && (!shouldYield() || timeout)) WIP = reconcile(WIP)
+  if (WIP && !timeout) return reconcileWork.bind(null)
   if (preCommit) commitWork(preCommit)
   return null
 }
@@ -59,6 +53,7 @@ const reconcile = (WIP: IFiber): IFiber | undefined => {
 }
 
 const updateHook = <P = Attributes>(WIP: IFiber): void => {
+  if (WIP.lastProps === WIP.props) return
   currentFiber = WIP
   resetCursor()
   let children = (WIP.type as FC<P>)(WIP.props)
@@ -68,15 +63,13 @@ const updateHook = <P = Attributes>(WIP: IFiber): void => {
 
 const updateHost = (WIP: IFiber): void => {
   if (!WIP.node) {
-    if (WIP.type === 'svg') {
-      WIP.op |= (1 << 4)
-    }
+    if (WIP.type === 'svg') WIP.op |= 1 << 4
     WIP.node = createElement(WIP) as HTMLElementEx
   }
-  const p = WIP.parentNode || {}
-  WIP.insertPoint = (p as HTMLElementEx).last || null
-    ; (p as HTMLElementEx).last = WIP
-    ; (WIP.node as HTMLElementEx).last = null
+  const p = WIP.parent || {}
+  WIP.insertPoint = (p as IFiber).last || null
+  ;(p as IFiber).last = WIP
+  WIP.last = null
   reconcileChildren(WIP, WIP.props.children)
 }
 
@@ -100,7 +93,7 @@ const reconcileChildren = (WIP: IFiber, children: FreNode): void => {
     if (newFiber && newFiber.type === oldFiber.type) {
       reused[k] = oldFiber
     } else {
-      oldFiber.op |= (1 << 3)
+      oldFiber.op |= 1 << 3
       commits.push(oldFiber)
     }
   }
@@ -112,14 +105,14 @@ const reconcileChildren = (WIP: IFiber, children: FreNode): void => {
     const oldFiber = reused[k]
 
     if (oldFiber) {
-      oldFiber.op |= (1 << 2)
+      oldFiber.op |= 1 << 2
       newFiber = { ...oldFiber, ...newFiber }
       newFiber.lastProps = oldFiber.props
       if (shouldPlace(newFiber)) {
-        newFiber.op &= (1 << 1)
+        newFiber.op &= 1 << 1
       }
     } else {
-      newFiber.op |= (1 << 1)
+      newFiber.op |= 1 << 1
     }
 
     newFibers[k] = newFiber
@@ -129,14 +122,14 @@ const reconcileChildren = (WIP: IFiber, children: FreNode): void => {
       prevFiber.sibling = newFiber
     } else {
       if (WIP.op & (1 << 4)) {
-        newFiber.op |= (1 << 4)
+        newFiber.op |= 1 << 4
       }
       WIP.child = newFiber
     }
     prevFiber = newFiber
   }
 
-  if (prevFiber) prevFiber.sibling = null
+  delete prevFiber?.sibling
 }
 
 const shouldPlace = (fiber: IFiber): string | boolean | undefined => {
@@ -176,18 +169,6 @@ const commit = (fiber: IFiber): void => {
   }
   refer(ref, node)
 }
-
-const onError = (e: any) => {
-  if (isFn(e.error?.then)) {
-    e.preventDefault()
-    currentFiber.lane = 0
-    currentFiber.hooks.list.forEach(reset)
-    dispatchUpdate(currentFiber)
-  }
-}
-
-const reset = (h: any) => (h[2] & (1 << 2) ? h[2] = 0b1101 : h[2] & (1 << 3) ? h[2] = 0b1010 : null)
-
 
 const hashfy = <P>(c: IFiber<P>): FiberMap<P> => {
   const out: FiberMap<P> = {}
